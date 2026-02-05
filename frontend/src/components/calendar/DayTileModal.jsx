@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, DollarSign, TrendingUp, Hash, StickyNote, ArrowLeft } from 'lucide-react';
@@ -9,27 +8,42 @@ const DayTileModal = ({ isOpen, onClose, date, initialData, onSave }) => {
   const [formData, setFormData] = useState({
     profitLoss: '',
     trades: '',
+    amountInvested: '',
     roi: '',
     notes: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Calculate ROI on the fly based on profitLoss & amountInvested
+   const computedRoi = (() => {
+    const pl = parseFloat(formData.profitLoss);
+    const invested = parseFloat(formData.amountInvested);
+
+    if (!invested || Number.isNaN(invested) || invested === 0) return 0;
+    if (Number.isNaN(pl)) return 0;
+
+    // 🔥 round to 2 decimals and return as number
+    return Number(((pl / invested) * 100).toFixed(2));
+  })();
+
+
   useEffect(() => {
     if (isOpen) {
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
       
       if (initialData) {
         setFormData({
-          profitLoss: initialData.profitLoss || '',
-          trades: initialData.trades || '',
-          roi: initialData.roi || '',
-          notes: initialData.notes || ''
+          profitLoss: initialData.profitLoss ?? '',
+          trades: initialData.trades ?? '',
+          amountInvested: initialData.amountInvested ?? '',
+          roi: initialData.roi ?? '',
+          notes: initialData.notes ?? ''
         });
       } else {
         setFormData({
           profitLoss: '',
           trades: '',
+          amountInvested: '',
           roi: '',
           notes: ''
         });
@@ -47,17 +61,30 @@ const DayTileModal = ({ isOpen, onClose, date, initialData, onSave }) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
-    onSave(date, {
-      profitLoss: parseFloat(formData.profitLoss) || 0,
-      trades: parseInt(formData.trades) || 0,
-      roi: parseFloat(formData.roi) || 0,
-      notes: formData.notes
-    });
-    
-    setIsSubmitting(false);
-    onClose();
+    try {
+      const profitLoss = parseFloat(formData.profitLoss) || 0;
+      const trades = parseInt(formData.trades) || 0;
+      const amountInvested = parseFloat(formData.amountInvested) || 0;
+      let roi = 0;
+      if (amountInvested > 0) {
+        roi = Number(((profitLoss / amountInvested) * 100).toFixed(2));
+      }
+
+      await onSave(date, {
+        profitLoss,
+        trades,
+        amountInvested,
+        roi,
+        notes: formData.notes
+      });
+
+
+      onClose();
+    } catch (error) {
+      console.error('Failed to save entry', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -152,8 +179,26 @@ const DayTileModal = ({ isOpen, onClose, date, initialData, onSave }) => {
                 </div>
               </div>
 
-              {/* ROI */}
-              <div className="space-y-2 col-span-1">
+              {/* Amount Invested */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-400">Amount Invested ($)</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <DollarSign className="h-4 w-4 text-gray-500" />
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.amountInvested}
+                    onChange={(e) => setFormData({...formData, amountInvested: e.target.value})}
+                    className="block w-full pl-10 pr-3 py-3 sm:py-2.5 bg-gray-900 sm:bg-gray-950 border border-gray-800 rounded-lg focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 text-white placeholder-gray-600 text-base sm:text-sm transition-all"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              {/* ROI (auto-calculated, read-only) */}
+              <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-400">ROI (%)</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -161,11 +206,9 @@ const DayTileModal = ({ isOpen, onClose, date, initialData, onSave }) => {
                   </div>
                   <input
                     type="number"
-                    step="0.01"
-                    value={formData.roi}
-                    onChange={(e) => setFormData({...formData, roi: e.target.value})}
-                    className="block w-full pl-10 pr-3 py-3 sm:py-2.5 bg-gray-900 sm:bg-gray-950 border border-gray-800 rounded-lg focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 text-white placeholder-gray-600 text-base sm:text-sm transition-all"
-                    placeholder="0.00"
+                    value={computedRoi.toFixed(2)}
+                    readOnly
+                    className="block w-full pl-10 pr-3 py-3 sm:py-2.5 bg-gray-900 sm:bg-gray-950 border border-gray-800 rounded-lg text-white placeholder-gray-600 text-base sm:text-sm transition-all cursor-not-allowed opacity-80"
                   />
                 </div>
               </div>
@@ -188,7 +231,7 @@ const DayTileModal = ({ isOpen, onClose, date, initialData, onSave }) => {
               </div>
             </div>
 
-            {/* Footer Actions (Visible on Mobile/Desktop) */}
+            {/* Footer Actions */}
             <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-800 mt-auto">
               <Button
                 type="button"

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/authRoutes');
+const dailyEntriesRoutes = require('./routes/dailyEntriesRoutes');
 
 const app = express();
 
@@ -27,7 +28,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
 });
 
-// Auth routes (register/login)
+
+
+
+
 app.use('/api/auth', authRoutes);
+app.use('/api/daily-entries', dailyEntriesRoutes);
+
+
 
 module.exports = app;
