@@ -1,42 +1,28 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { BarChart3, Loader2, AlertCircle, Info } from 'lucide-react';
+import { BarChart3, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const LoginPage = () => {
-  const demoEmail = "demo@tradingjournal.com";
-  const demoPassword = "demo123456";
-
   const [formData, setFormData] = useState({
-    email: demoEmail, // Pre-fill with demo credentials
-    password: demoPassword // Pre-fill with demo credentials
+    email: '',
+    password: ''
   });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { login, isAuthenticated, register } = useAuth(); // Added register to ensure demo user exists
+
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, setAuth } = useAuth(); // ⬅ from AuthContext
 
-  // Register demo user if not already present
-  useEffect(() => {
-    // This is a temporary measure for the demo. In a real app, demo user would be pre-existing.
-    // Check if demo user exists in local storage
-    const storedUsers = JSON.parse(localStorage.getItem('tradingJournalUsers') || '[]');
-    const demoUserExists = storedUsers.some(u => u.email === demoEmail);
-
-    if (!demoUserExists) {
-      register(demoEmail, demoPassword, "DemoTrader");
-    }
-  }, [register]);
-
-
-  // Redirect if already authenticated
+  // If already logged in, go to dashboard
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard', { replace: true });
@@ -45,25 +31,27 @@ const LoginPage = () => {
 
   const validateField = (name, value) => {
     let error = '';
+
     if (name === 'email') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!value) error = 'Email is required';
       else if (!emailRegex.test(value)) error = 'Please enter a valid email address';
     }
+
     if (name === 'password') {
       if (!value) error = 'Password is required';
       else if (value.length < 6) error = 'Password must be at least 6 characters';
     }
+
     return error;
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Real-time validation clearing (optional: validate on change or blur)
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
     if (serverError) setServerError('');
   };
@@ -71,16 +59,16 @@ const LoginPage = () => {
   const handleBlur = (e) => {
     const { name, value } = e.target;
     const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerError('');
-    
+
     // Validate all fields
     const newErrors = {};
-    Object.keys(formData).forEach(key => {
+    Object.keys(formData).forEach((key) => {
       const error = validateField(key, formData[key]);
       if (error) newErrors[key] = error;
     });
@@ -93,19 +81,38 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const result = login(formData.email, formData.password);
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
 
-      if (result.success) {
-        // Redirect to dashboard (or where they came from if implemented)
-        const from = location.state?.from?.pathname || '/dashboard';
-        navigate(from, { replace: true });
-      } else {
-        setServerError(result.error || 'Invalid email or password');
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = data.message || 'Invalid email or password';
+        setServerError(message);
+        return;
       }
+
+      // ✅ Update global auth state + localStorage via AuthContext
+      if (data.token) {
+        setAuth(data.token, data.user || null);
+      }
+
+      console.log('Login successful, token and user saved via AuthContext');
+
+      // Redirect to dashboard or previous page
+      const from = location.state?.from?.pathname || '/dashboard';
+      console.log('Navigating to:', from);
+      navigate(from, { replace: true });
     } catch (err) {
+      console.error(err);
       setServerError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -126,16 +133,6 @@ const LoginPage = () => {
           <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
         </div>
 
-        {/* Header / Logo */}
-        <header className="relative z-10 px-6 py-6 flex justify-center sm:justify-start">
-          <Link to="/" className="inline-flex items-center space-x-2 group">
-            <div className="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500/20 transition-colors">
-              <BarChart3 className="w-6 h-6 text-emerald-500" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">TradingJournal</span>
-          </Link>
-        </header>
-
         {/* Main Content */}
         <main className="flex-1 flex items-center justify-center p-4 z-10">
           <motion.div
@@ -149,26 +146,6 @@ const LoginPage = () => {
                 <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
                 <p className="text-gray-400">Enter your details to access your account</p>
               </div>
-
-              {/* Demo Credentials Section */}
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="mb-6 bg-blue-900/40 border border-blue-800 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-2">
-                  <Info className="w-5 h-5 text-blue-400 shrink-0" />
-                  <span className="text-blue-200 text-base font-semibold">Demo Account</span>
-                </div>
-                <div className="text-sm text-blue-300">
-                  <p>Email: <span className="font-medium text-blue-100">{demoEmail}</span></p>
-                  <p>Password: <span className="font-medium text-blue-100">{demoPassword}</span></p>
-                </div>
-                <p className="text-xs text-blue-300 text-center sm:text-right mt-2 sm:mt-0 italic max-w-xs sm:max-w-[150px]">
-                  (Credentials are pre-filled for easy testing)
-                </p>
-              </motion.div>
 
               {/* Server Error Alert */}
               <AnimatePresence>
@@ -188,7 +165,10 @@ const LoginPage = () => {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Email Input */}
                 <div className="space-y-2">
-                  <label htmlFor="email" className="block text-base sm:text-sm font-medium text-gray-300">
+                  <label
+                    htmlFor="email"
+                    className="block text-base sm:text-sm font-medium text-gray-300"
+                  >
                     Email address
                   </label>
                   <input
@@ -200,7 +180,9 @@ const LoginPage = () => {
                     onBlur={handleBlur}
                     placeholder="name@example.com"
                     className={`w-full bg-gray-950/50 border ${
-                      errors.email ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
+                      errors.email
+                        ? 'border-red-500/50 focus:ring-red-500/50'
+                        : 'border-gray-700 focus:ring-emerald-500/50'
                     } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
                     disabled={isSubmitting}
                   />
@@ -221,11 +203,14 @@ const LoginPage = () => {
                 {/* Password Input */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="password" className="block text-base sm:text-sm font-medium text-gray-300">
+                    <label
+                      htmlFor="password"
+                      className="block text-base sm:text-sm font-medium text-gray-300"
+                    >
                       Password
                     </label>
-                    <Link 
-                      to="#" 
+                    <Link
+                      to="#"
                       className="text-sm sm:text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
                       onClick={(e) => e.preventDefault()} // Placeholder link
                     >
@@ -241,7 +226,9 @@ const LoginPage = () => {
                     onBlur={handleBlur}
                     placeholder="Enter your password"
                     className={`w-full bg-gray-950/50 border ${
-                      errors.password ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
+                      errors.password
+                        ? 'border-red-500/50 focus:ring-red-500/50'
+                        : 'border-gray-700 focus:ring-emerald-500/50'
                     } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
                     disabled={isSubmitting}
                   />
@@ -271,7 +258,7 @@ const LoginPage = () => {
                       Signing in...
                     </span>
                   ) : (
-                    "Sign in"
+                    'Sign in'
                   )}
                 </Button>
               </form>
@@ -279,7 +266,10 @@ const LoginPage = () => {
               <div className="mt-8 pt-6 border-t border-gray-800 text-center">
                 <p className="text-gray-400 text-sm">
                   Don't have an account?{' '}
-                  <Link to="/register" className="text-emerald-500 hover:text-emerald-400 font-semibold transition-colors">
+                  <Link
+                    to="/register"
+                    className="text-emerald-500 hover:text-emerald-400 font-semibold transition-colors"
+                  >
                     Sign up
                   </Link>
                 </p>

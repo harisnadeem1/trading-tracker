@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
@@ -8,18 +7,19 @@ import { useToast } from '@/components/ui/use-toast';
 import { BarChart3, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
-    username: '',
     email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
-  
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { register, isAuthenticated } = useAuth();
+
+  const { isAuthenticated, setAuth } = useAuth(); // use setAuth so context updates
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -32,32 +32,25 @@ const RegisterPage = () => {
 
   const validateField = (name, value, allData = formData) => {
     let error = '';
-    
+
     switch (name) {
-      case 'username':
-        if (!value.trim()) error = 'Username is required';
-        else if (value.length < 3) error = 'Username must be at least 3 characters';
-        break;
-        
-      case 'email':
+      case 'email': {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!value) error = 'Email is required';
         else if (!emailRegex.test(value)) error = 'Please enter a valid email address';
         break;
-        
-      case 'password':
+      }
+
+      case 'password': {
         if (!value) error = 'Password is required';
-        else if (value.length < 6) error = 'Password must be at least 6 characters';
+        else if (value.length < 8) error = 'Password must be at least 8 characters';
         break;
-        
-      case 'confirmPassword':
-        if (value !== allData.password) error = 'Passwords do not match';
-        break;
-        
+      }
+
       default:
         break;
     }
-    
+
     return error;
   };
 
@@ -65,34 +58,25 @@ const RegisterPage = () => {
     const { name, value } = e.target;
     const newData = { ...formData, [name]: value };
     setFormData(newData);
-    
+
     // Clear error when user types
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    
-    // Special case for confirm password real-time validation
-    if (name === 'password' && formData.confirmPassword) {
-      if (value !== formData.confirmPassword) {
-        setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
-      } else {
-        setErrors(prev => ({ ...prev, confirmPassword: '' }));
-      }
+      setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
     const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const newErrors = {};
-    Object.keys(formData).forEach(key => {
+    Object.keys(formData).forEach((key) => {
       const error = validateField(key, formData[key]);
       if (error) newErrors[key] = error;
     });
@@ -105,31 +89,48 @@ const RegisterPage = () => {
     setIsSubmitting(true);
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const result = register(formData.email, formData.password, formData.username);
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
 
-      if (result.success) {
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const message = data.message || 'An error occurred during registration';
         toast({
-          title: "Account created!",
-          description: "Welcome to TradingJournal. You are now logged in.",
-          className: "bg-emerald-500 border-none text-white",
+          title: 'Registration Failed',
+          description: message,
+          variant: 'destructive'
         });
-        navigate('/dashboard', { replace: true });
-      } else {
-        toast({
-          title: "Registration Failed",
-          description: result.error || "An error occurred during registration",
-          variant: "destructive"
-        });
-        setErrors(prev => ({ ...prev, submit: result.error }));
+        setErrors((prev) => ({ ...prev, submit: message }));
+        return;
       }
-    } catch (err) {
+
+      // ✅ Save token and user via AuthContext so app knows we're logged in
+      if (data.token) {
+        setAuth(data.token, data.user || null);
+      }
+
       toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
+        title: 'Account created!',
+        description: 'Welcome to TradingJournal. You are now logged in.',
+        className: 'bg-emerald-500 border-none text-white'
+      });
+
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsSubmitting(false);
@@ -165,16 +166,6 @@ const RegisterPage = () => {
           <div className="absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
         </div>
 
-        {/* Header / Logo */}
-        <header className="relative z-10 px-6 py-6 flex justify-center sm:justify-start">
-          <Link to="/" className="inline-flex items-center space-x-2 group">
-            <div className="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500/20 transition-colors">
-              <BarChart3 className="w-6 h-6 text-emerald-500" />
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">TradingJournal</span>
-          </Link>
-        </header>
-
         {/* Main Content */}
         <main className="flex-1 flex items-center justify-center p-4 z-10">
           <motion.div
@@ -190,41 +181,12 @@ const RegisterPage = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Username Input */}
-                <div className="space-y-2">
-                  <label htmlFor="username" className="block text-base sm:text-sm font-medium text-gray-300">
-                    Username
-                  </label>
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="TraderJohn"
-                    className={`w-full bg-gray-950/50 border ${
-                      errors.username ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
-                    } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
-                    disabled={isSubmitting}
-                  />
-                  <AnimatePresence>
-                    {errors.username && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-red-400 font-medium ml-1 flex items-center mt-1"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" /> {errors.username}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-
                 {/* Email Input */}
                 <div className="space-y-2">
-                  <label htmlFor="email" className="block text-base sm:text-sm font-medium text-gray-300">
+                  <label
+                    htmlFor="email"
+                    className="block text-base sm:text-sm font-medium text-gray-300"
+                  >
                     Email address
                   </label>
                   <input
@@ -236,7 +198,9 @@ const RegisterPage = () => {
                     onBlur={handleBlur}
                     placeholder="name@example.com"
                     className={`w-full bg-gray-950/50 border ${
-                      errors.email ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
+                      errors.email
+                        ? 'border-red-500/50 focus:ring-red-500/50'
+                        : 'border-gray-700 focus:ring-emerald-500/50'
                     } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
                     disabled={isSubmitting}
                   />
@@ -256,7 +220,10 @@ const RegisterPage = () => {
 
                 {/* Password Input */}
                 <div className="space-y-2">
-                  <label htmlFor="password" className="block text-base sm:text-sm font-medium text-gray-300">
+                  <label
+                    htmlFor="password"
+                    className="block text-base sm:text-sm font-medium text-gray-300"
+                  >
                     Password
                   </label>
                   <input
@@ -268,11 +235,13 @@ const RegisterPage = () => {
                     onBlur={handleBlur}
                     placeholder="Create a strong password"
                     className={`w-full bg-gray-950/50 border ${
-                      errors.password ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
+                      errors.password
+                        ? 'border-red-500/50 focus:ring-red-500/50'
+                        : 'border-gray-700 focus:ring-emerald-500/50'
                     } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
                     disabled={isSubmitting}
                   />
-                  
+
                   {/* Password Strength Indicator */}
                   {formData.password && (
                     <div className="flex gap-1 h-1 mt-2">
@@ -307,38 +276,6 @@ const RegisterPage = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Confirm Password Input */}
-                <div className="space-y-2">
-                  <label htmlFor="confirmPassword" className="block text-base sm:text-sm font-medium text-gray-300">
-                    Confirm Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="Confirm your password"
-                    className={`w-full bg-gray-950/50 border ${
-                      errors.confirmPassword ? 'border-red-500/50 focus:ring-red-500/50' : 'border-gray-700 focus:ring-emerald-500/50'
-                    } rounded-xl px-4 py-3.5 sm:py-3 text-base sm:text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200`}
-                    disabled={isSubmitting}
-                  />
-                  <AnimatePresence>
-                    {errors.confirmPassword && (
-                      <motion.p
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-xs text-red-400 font-medium ml-1 flex items-center mt-1"
-                      >
-                        <AlertCircle className="w-3 h-3 mr-1" /> {errors.confirmPassword}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-
                 {/* Submit Button */}
                 <Button
                   type="submit"
@@ -351,7 +288,7 @@ const RegisterPage = () => {
                       Creating account...
                     </span>
                   ) : (
-                    "Register"
+                    'Register'
                   )}
                 </Button>
               </form>
@@ -359,7 +296,10 @@ const RegisterPage = () => {
               <div className="mt-8 pt-6 border-t border-gray-800 text-center">
                 <p className="text-gray-400 text-sm">
                   Already have an account?{' '}
-                  <Link to="/login" className="text-emerald-500 hover:text-emerald-400 font-semibold transition-colors">
+                  <Link
+                    to="/login"
+                    className="text-emerald-500 hover:text-emerald-400 font-semibold transition-colors"
+                  >
                     Log in
                   </Link>
                 </p>
