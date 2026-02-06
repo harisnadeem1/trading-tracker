@@ -209,13 +209,13 @@ const LoginPage = () => {
                     >
                       Password
                     </label>
-                    <Link
+                    {/* <Link
                       to="#"
                       className="text-sm sm:text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
                       onClick={(e) => e.preventDefault()} // Placeholder link
                     >
                       Forgot password?
-                    </Link>
+                    </Link> */}
                   </div>
                   <input
                     id="password"

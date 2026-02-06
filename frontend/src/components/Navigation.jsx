@@ -94,9 +94,19 @@ const Navigation = () => {
             ) : (
               <div className="flex items-center space-x-4">
                 <Link to="/login">
-                  <Button variant="outline" className="border-gray-600 text-gray-300 hover:text-white hover:border-gray-500 hover:bg-gray-800">
-                    Log In
-                  </Button>
+                  <Button
+  variant="outline"
+  className="
+    border-gray-700 
+    bg-gray-900 
+    text-white 
+    hover:bg-gray-800 
+    hover:border-gray-600
+  "
+>
+  Log In
+</Button>
+
                 </Link>
                 <Link to="/register">
                   <Button className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20">
@@ -164,9 +174,20 @@ const Navigation = () => {
               ) : (
                 <div className="flex flex-col space-y-4 pt-4">
                    <Link to="/login" className="block">
-                    <Button variant="outline" className="w-full h-12 text-base border-gray-600 text-gray-300 hover:text-white rounded-xl">
-                      Log In
-                    </Button>
+                    <Button
+  variant="outline"
+  className="
+    w-full h-12 text-base rounded-xl
+    border-gray-700
+    bg-gray-900
+    text-white
+    hover:bg-gray-800
+    hover:border-gray-600
+  "
+>
+  Log In
+</Button>
+
                   </Link>
                   <Link to="/register" className="block">
                     <Button className="w-full h-12 text-base bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 rounded-xl">
