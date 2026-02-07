@@ -230,8 +230,142 @@ const WinLossBar = ({ avgWin, avgLoss }) => {
   );
 };
 
+// Mobile Calendar Grid Component - Compact and Scrollable
+const MobileCalendarGrid = ({ currentDate, calendarData, onDayClick }) => {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-// Enhanced Calendar Grid with Weekly Profits Column
+  const getDateKey = (day, month, year) => {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const totalWeeks = Math.ceil((daysInMonth + firstDay) / 7);
+
+  return (
+    <div className="overflow-x-auto hide-scrollbar">
+      <div className="min-w-max">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {dayNames.map((day, idx) => (
+            <div key={idx} className="text-center w-16">
+              <div className="text-xs font-semibold text-gray-500">{day}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="space-y-2">
+          {Array.from({ length: totalWeeks }, (_, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-2">
+              {Array.from({ length: 7 }, (_, dayIndex) => {
+                const cellIndex = weekIndex * 7 + dayIndex;
+                const day = cellIndex - firstDay + 1;
+
+                if (day < 1 || day > daysInMonth) {
+                  return <div key={dayIndex} className="w-16 h-20" />;
+                }
+
+                const dateKey = getDateKey(day, month, year);
+                const dayData = calendarData[dateKey];
+                const isToday =
+                  day === new Date().getDate() &&
+                  month === new Date().getMonth() &&
+                  year === new Date().getFullYear();
+
+                const hasTrades = dayData && dayData.trades > 0;
+                const profitLoss = dayData?.profitLoss || 0;
+                const isProfit = profitLoss > 0;
+                const isLoss = profitLoss < 0;
+
+                return (
+                  <motion.button
+                    key={dayIndex}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => onDayClick(day, month, year)}
+                    className={`
+                      relative w-16 h-20 rounded-lg border transition-all duration-200
+                      ${isToday ? 'border-blue-500/70 bg-blue-500/10' : 'border-gray-800/50'}
+                      ${
+                        hasTrades
+                          ? isProfit
+                            ? 'bg-gradient-to-br from-emerald-500/15 to-emerald-500/5'
+                            : isLoss
+                              ? 'bg-gradient-to-br from-red-500/15 to-red-500/5'
+                              : 'bg-gray-900/40'
+                          : 'bg-gray-900/20'
+                      }
+                    `}
+                  >
+                    <div className="p-1.5 h-full flex flex-col justify-between items-center">
+                      <span
+                        className={`text-xs font-semibold ${
+                          isToday ? 'text-blue-400' : 'text-gray-300'
+                        }`}
+                      >
+                        {day}
+                      </span>
+
+                      {hasTrades && (
+                        <div className="flex flex-col items-center gap-0.5 w-full">
+                          {/* P/L */}
+                          <div
+                            className={`text-[10px] font-bold leading-none ${
+                              isProfit
+                                ? 'text-emerald-400'
+                                : isLoss
+                                  ? 'text-red-400'
+                                  : 'text-gray-400'
+                            }`}
+                          >
+                            {Math.abs(profitLoss) >= 1000
+                              ? `${profitLoss >= 0 ? '+' : '-'}${(Math.abs(profitLoss) / 1000).toFixed(1)}k`
+                              : profitLoss >= 0
+                                ? `+${profitLoss.toFixed(0)}`
+                                : profitLoss.toFixed(0)}
+                          </div>
+                          
+                          {/* Trades count */}
+                          <div className="text-[8px] text-gray-500">
+                            {dayData.trades} Trades
+                          </div>
+                          
+                          {/* ROI */}
+                          {dayData.roi !== null && dayData.roi !== undefined && (
+                            <div
+                              className={`text-[8px] font-medium ${
+                                dayData.roi > 0
+                                  ? 'text-emerald-400'
+                                  : dayData.roi < 0
+                                    ? 'text-red-400'
+                                    : 'text-gray-500'
+                              }`}
+                            >
+                              {dayData.roi.toFixed(0)}%
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {isToday && (
+                      <div className="absolute inset-0 rounded-lg border-2 border-blue-500/30 pointer-events-none animate-pulse" />
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// Enhanced Calendar Grid with Weekly Profits Column (DESKTOP)
 const EnhancedCalendarGrid = ({ currentDate, calendarData, onDayClick }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -302,8 +436,13 @@ const EnhancedCalendarGrid = ({ currentDate, calendarData, onDayClick }) => {
 
               const hasTrades = dayData && dayData.trades > 0;
               const profitLoss = dayData?.profitLoss || 0;
+              const roi = typeof dayData?.roi === 'number' ? dayData.roi : null;
+
               const isProfit = profitLoss > 0;
               const isLoss = profitLoss < 0;
+
+              const roiColorClass =
+                roi > 0 ? 'text-emerald-400' : roi < 0 ? 'text-red-400' : 'text-gray-500';
 
               return (
                 <motion.button
@@ -314,36 +453,65 @@ const EnhancedCalendarGrid = ({ currentDate, calendarData, onDayClick }) => {
                   className={`
                     relative min-h-[80px] rounded-xl border-2 transition-all duration-200
                     ${isToday ? 'border-blue-500/50 bg-blue-500/5' : 'border-gray-800/50'}
-                    ${hasTrades
-                      ? isProfit
-                        ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 hover:from-emerald-500/20 hover:to-emerald-500/10'
-                        : isLoss
-                          ? 'bg-gradient-to-br from-red-500/10 to-red-500/5 hover:from-red-500/20 hover:to-red-500/10'
-                          : 'bg-gray-900/30 hover:bg-gray-800/50'
-                      : 'bg-gray-900/20 hover:bg-gray-800/40'
+                    ${
+                      hasTrades
+                        ? isProfit
+                          ? 'bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 hover:from-emerald-500/20 hover:to-emerald-500/10'
+                          : isLoss
+                            ? 'bg-gradient-to-br from-red-500/10 to-red-500/5 hover:from-red-500/20 hover:to-red-500/10'
+                            : 'bg-gray-900/30 hover:bg-gray-800/50'
+                        : 'bg-gray-900/20 hover:bg-gray-800/40'
                     }
                   `}
                 >
                   <div className="p-2 h-full flex flex-col justify-between">
                     <div className="flex items-start justify-between">
-                      <span className={`text-sm font-semibold ${isToday ? 'text-blue-400' : 'text-gray-300'
-                        }`}>
+                      <span
+                        className={`text-sm font-semibold ${
+                          isToday ? 'text-blue-400' : 'text-gray-300'
+                        }`}
+                      >
                         {day}
                       </span>
                       {hasTrades && (
-                        <div className="w-2 h-2 rounded-full bg-gradient-to-br from-blue-400 to-purple-500" />
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            isProfit
+                              ? 'bg-emerald-400'
+                              : isLoss
+                                ? 'bg-red-400'
+                                : 'bg-gray-400'
+                          }`}
+                        />
                       )}
                     </div>
 
                     {hasTrades && (
-                      <div className="space-y-1">
-                        <div className={`text-xs font-bold ${isProfit ? 'text-emerald-400' : isLoss ? 'text-red-400' : 'text-gray-400'
-                          }`}>
+                      <div className="mt-1 w-full flex flex-col items-end text-right space-y-1">
+                        {/* P/L – now text-sm */}
+                        <div
+                          className={`text-sm font-bold ${
+                            isProfit
+                              ? 'text-emerald-400'
+                              : isLoss
+                                ? 'text-red-400'
+                                : 'text-gray-400'
+                          }`}
+                        >
                           {formatPL(profitLoss)}
                         </div>
+
+                        {/* Trades */}
                         <div className="text-[10px] text-gray-500">
                           {dayData.trades} {dayData.trades === 1 ? 'trade' : 'trades'}
                         </div>
+
+                        {/* ROI under trades */}
+                        {roi !== null && (
+                          <div className={`text-[10px] font-medium ${roiColorClass}`}>
+                            ROI {roi.toFixed(1)}%
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -893,12 +1061,23 @@ const CalendarPage = () => {
 
             </div>
 
-            {/* Calendar Grid */}
-            <EnhancedCalendarGrid
-              currentDate={currentDate}
-              calendarData={calendarData}
-              onDayClick={handleDayClick}
-            />
+            {/* Calendar Grid - Desktop */}
+            <div className="hidden lg:block">
+              <EnhancedCalendarGrid
+                currentDate={currentDate}
+                calendarData={calendarData}
+                onDayClick={handleDayClick}
+              />
+            </div>
+
+            {/* Calendar Grid - Mobile & Tablet */}
+            <div className="block lg:hidden">
+              <MobileCalendarGrid
+                currentDate={currentDate}
+                calendarData={calendarData}
+                onDayClick={handleDayClick}
+              />
+            </div>
           </motion.div>
 
         </div>

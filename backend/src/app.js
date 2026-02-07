@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const authRoutes = require('./routes/authRoutes');
 const dailyEntriesRoutes = require('./routes/dailyEntriesRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
@@ -34,7 +35,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/daily-entries', dailyEntriesRoutes);
-
+app.use('/api/dashboard', dashboardRoutes);
 
 
 module.exports = app;

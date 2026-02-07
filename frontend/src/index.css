@@ -108,3 +108,15 @@ input:focus-visible,
 textarea:focus-visible {
   @apply outline-none ring-2 ring-emerald-500 ring-offset-2 ring-offset-gray-950;
 }
+
+
+/* Add this to your global CSS file (index.css or App.css) */
+
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
